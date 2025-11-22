@@ -1,0 +1,2065 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Viewport optimization for touch devices -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sketch Pad Pro</title>
+    <style>
+        /* --- CSS RESET & VARIABLES --- */
+        :root {
+            /* Light Theme (Default) */
+            --app-bg: #f0f2f5;
+            --panel-bg: rgba(255, 255, 255, 0.95);
+            --canvas-paper: #ffffff;
+            --text-color: #1f2937;
+            --text-muted: #6b7280;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --accent-bg: #eff6ff;
+            --danger-color: #ef4444;
+            --danger-bg: #fef2f2;
+            --border-color: #e5e7eb;
+            --hover-bg: #f3f4f6;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --modal-overlay: rgba(0,0,0,0.2);
+            --modal-bg: #ffffff;
+            --item-active-bg: #eff6ff;
+            --item-active-border: #bfdbfe;
+            
+            --radius: 16px;
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        /* Dark Theme Overrides */
+        [data-theme="dark"] {
+            --app-bg: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.95);
+            --canvas-paper: #ffffff; /* Canvas stays white to preserve drawing colors */
+            --text-color: #f3f4f6;
+            --text-muted: #9ca3af;
+            --accent-color: #60a5fa;
+            --accent-hover: #3b82f6;
+            --accent-bg: rgba(59, 130, 246, 0.15);
+            --danger-color: #f87171;
+            --danger-bg: rgba(239, 68, 68, 0.15);
+            --border-color: #374151;
+            --hover-bg: #334155;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            --modal-overlay: rgba(0,0,0,0.6);
+            --modal-bg: #1e293b;
+            --item-active-bg: rgba(59, 130, 246, 0.15);
+            --item-active-border: #3b82f6;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none; /* Prevent text selection while drawing */
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--app-bg);
+            color: var(--text-color);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* --- CANVAS LAYER --- */
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            touch-action: none;
+            background-color: var(--canvas-paper);
+            cursor: crosshair;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Text Input Helper */
+        #text-helper {
+            position: absolute;
+            display: none;
+            z-index: 20;
+            background: transparent;
+            border: 1px dashed var(--accent-color);
+            color: black; /* Always black/set color, matches canvas */
+            padding: 0;
+            margin: 0;
+            outline: none;
+            resize: none;
+            overflow: hidden;
+            font-family: sans-serif;
+            line-height: 1.2;
+            white-space: pre;
+            min-width: 50px;
+            min-height: 20px;
+        }
+
+        /* --- UI LAYER --- */
+        .ui-layer {
+            position: absolute;
+            z-index: 10;
+            pointer-events: none;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        /* Top Header */
+        .header {
+            pointer-events: auto;
+            align-self: flex-start;
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            padding: 8px 16px;
+            border-radius: 30px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            max-width: 100%;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        /* Document Title Input */
+        #doc-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-color);
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            padding: 4px 8px;
+            width: 180px;
+            transition: all 0.2s;
+        }
+        #doc-title:hover {
+            border-color: var(--border-color);
+            background: var(--hover-bg);
+        }
+        #doc-title:focus {
+            border-color: var(--accent-color);
+            background: var(--panel-bg);
+            outline: none;
+        }
+
+        .status-pill {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            background: var(--hover-bg);
+            padding: 2px 8px;
+            border-radius: 10px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            white-space: nowrap;
+        }
+
+        /* Bottom Toolbar */
+        .toolbar {
+            pointer-events: auto;
+            align-self: center;
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            padding: 12px 24px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            margin-bottom: 20px;
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.3s ease;
+        }
+
+        .tool-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .divider {
+            width: 1px;
+            height: 28px;
+            background-color: var(--border-color);
+        }
+
+        /* Buttons */
+        .btn {
+            position: relative;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 10px;
+            color: var(--text-muted);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn:hover {
+            background-color: var(--hover-bg);
+            color: var(--text-color);
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn.active {
+            background-color: var(--accent-bg);
+            color: var(--accent-color);
+        }
+        
+        .btn.danger {
+             color: var(--danger-color);
+        }
+        
+        .btn.danger:hover {
+            background-color: var(--danger-bg);
+        }
+
+        .btn svg {
+            width: 22px;
+            height: 22px;
+            stroke-width: 2;
+        }
+
+        /* Tooltip for Shortcuts */
+        .btn[data-shortcut]::after {
+            content: attr(data-shortcut);
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--text-color);
+            color: var(--panel-bg);
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn:hover[data-shortcut]::after {
+            opacity: 0.8;
+            transition-delay: 0.5s;
+        }
+
+        /* Color Picker Styling */
+        .color-wrapper {
+            position: relative;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 2px solid var(--canvas-paper);
+            box-shadow: 0 0 0 1px var(--border-color);
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+        
+        .color-wrapper:hover {
+            transform: scale(1.1);
+        }
+
+        input[type="color"] {
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            cursor: pointer;
+            padding: 0;
+            border: none;
+            background: none;
+        }
+
+        /* Slider Styling */
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            align-items: center;
+            position: relative;
+        }
+        
+        .slider-group.hidden {
+            display: none;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100px;
+            height: 6px;
+            background: var(--border-color);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--canvas-paper);
+            border: 2px solid var(--accent-color);
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        .size-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* Dropdown for Mirror Options */
+        .select-wrapper {
+            display: none; /* Hidden by default */
+            position: relative;
+        }
+        .select-wrapper.visible {
+            display: block;
+        }
+        select {
+            appearance: none;
+            background-color: var(--hover-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 6px 24px 6px 10px;
+            font-size: 0.75rem;
+            color: var(--text-color);
+            cursor: pointer;
+            outline: none;
+            font-family: var(--font-family);
+        }
+        select:hover {
+            background-color: var(--border-color);
+        }
+        .select-arrow {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            width: 12px;
+            height: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Context Action Button (Delete) */
+        #action-delete {
+            display: none; 
+        }
+        #action-delete.visible {
+            display: flex;
+        }
+
+        /* --- GALLERY MODAL --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--modal-overlay);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        .modal-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .modal-box {
+            background: var(--modal-bg);
+            width: 90%;
+            max-width: 500px;
+            height: 80vh;
+            border-radius: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transform: scale(0.95);
+            transition: transform 0.2s, background-color 0.3s ease;
+            border: 1px solid var(--border-color);
+        }
+        .modal-overlay.open .modal-box {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-color);
+        }
+
+        .doc-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .doc-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.1s;
+            margin-bottom: 5px;
+            border: 1px solid transparent;
+        }
+        .doc-item:hover {
+            background: var(--hover-bg);
+            border-color: var(--border-color);
+        }
+        .doc-item.active {
+            background: var(--item-active-bg);
+            border-color: var(--item-active-border);
+        }
+
+        .doc-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .doc-name {
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        .doc-date {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .doc-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .btn-small {
+            padding: 6px;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+        }
+        .btn-small:hover {
+            background: var(--danger-bg);
+            color: var(--danger-color);
+        }
+
+        .modal-footer {
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .btn-primary {
+            background: var(--accent-color);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-primary:hover { background: var(--accent-hover); }
+        
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-muted);
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+        }
+        .btn-secondary:hover { background: var(--hover-bg); color: var(--text-color); }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .toolbar {
+                width: 95%;
+                padding: 10px 12px;
+                gap: 6px;
+                justify-content: space-between;
+                bottom: 10px;
+                margin-bottom: 10px;
+            }
+            #doc-title { width: 120px; }
+            .divider { display: none; }
+            input[type="range"] { width: 60px; }
+            .btn[data-shortcut]::after { display: none; }
+            .status-pill { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container">
+        <canvas id="drawing-board"></canvas>
+        <textarea id="text-helper" spellcheck="false"></textarea>
+    </div>
+
+    <!-- Hidden File Input for Import -->
+    <input type="file" id="file-input" accept=".svg,image/svg+xml" style="display: none;">
+    <!-- New: Image Input -->
+    <input type="file" id="img-input" accept="image/*" style="display: none;">
+
+    <div class="ui-layer">
+        <div class="header">
+            <button class="btn" id="btn-gallery" title="My Sketches">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+            </button>
+            <input type="text" id="doc-title" value="Untitled Sketch" spellcheck="false">
+            <div class="tool-group">
+                 <span id="save-status" class="status-pill">Saved</span>
+                 <div class="divider"></div>
+                 <button class="btn" id="btn-theme" title="Toggle Theme">
+                    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                 </button>
+            </div>
+        </div>
+
+        <div class="toolbar">
+            <!-- Properties -->
+            <div class="tool-group">
+                <div class="color-wrapper" title="Change Color">
+                    <input type="color" id="color-picker" value="#1f2937">
+                </div>
+                
+                <!-- Size Slider -->
+                <div class="slider-group" title="Size">
+                    <input type="range" id="brush-size" min="1" max="80" value="12">
+                    <span class="size-label">12px</span>
+                </div>
+
+                <!-- Nib Angle Slider (Calligraphy only) -->
+                <div class="slider-group hidden" id="angle-control" title="Nib Angle">
+                    <input type="range" id="nib-angle" min="0" max="180" value="30">
+                    <span class="size-label">30°</span>
+                </div>
+
+                <!-- Smoothing Slider (Smooth Pen only) -->
+                <div class="slider-group hidden" id="smoothing-control" title="Stabilizer Strength">
+                    <input type="range" id="smoothing-level" min="1" max="30" value="10">
+                    <span class="size-label">Med</span>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Tools -->
+            <div class="tool-group">
+                <button class="btn active" id="tool-brush" data-shortcut="B" title="Brush Tool">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M18 12l-8 8-6-6 8-8"/><path d="M22 2l-2.5 2.5"/><path d="M14.5 6.5L18 10"/></svg>
+                </button>
+
+                <button class="btn" id="tool-text" data-shortcut="T" title="Text Tool">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>
+                </button>
+
+                <!-- Calligraphy Tool -->
+                <button class="btn" id="tool-calligraphy" data-shortcut="C" title="Calligraphy Pen">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path>
+                        <line x1="16" y1="8" x2="2" y2="22"></line>
+                        <line x1="17.5" y1="15" x2="9" y2="15"></line>
+                    </svg>
+                </button>
+
+                <!-- Smooth Pen Tool -->
+                <button class="btn" id="tool-smooth" data-shortcut="S" title="Smooth Pen">
+                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                       <path d="M3 12c0-2 2-4 5-4s5 2 5 4-2 4-5 4-5-2-5-4z"></path>
+                       <path d="M13 12c0-2 2-4 5-4s5 2 5 4-2 4-5 4-5-2-5-4z"></path>
+                       <circle cx="8" cy="12" r="1"></circle>
+                       <circle cx="18" cy="12" r="1"></circle>
+                   </svg>
+                </button>
+                
+                <!-- Mirror Pen -->
+                <button class="btn" id="tool-mirror" data-shortcut="M" title="Mirror Pen">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 18v-6"/><path d="M12 8V4"/><path d="M4.2 10l7.8-6 7.8 6a2 2 0 0 1 0 3l-7.8 6-7.8-6a2 2 0 0 1 0-3z"/>
+                    </svg>
+                </button>
+                
+                <div class="select-wrapper" id="mirror-options">
+                    <select id="mirror-axis">
+                        <option value="vertical">Vert</option>
+                        <option value="horizontal">Horz</option>
+                        <option value="quad">Quad</option>
+                    </select>
+                    <svg class="select-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </div>
+
+                <button class="btn" id="tool-eraser" data-shortcut="E" title="Eraser Tool">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16C2 15 2 13 3 12L13 2L22 11L20 20Z"/><path d="M11 11L20 20"/></svg>
+                </button>
+
+                <button class="btn" id="tool-select" data-shortcut="V" title="Selection Tool">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/></svg>
+                </button>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- History Actions -->
+            <div class="tool-group">
+                <button class="btn" id="action-undo" data-shortcut="Ctrl+Z" title="Undo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+                </button>
+
+                <button class="btn" id="action-redo" data-shortcut="Ctrl+Y" title="Redo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>
+                </button>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Meta Actions -->
+            <div class="tool-group">
+                <button class="btn danger" id="action-delete" data-shortcut="Del" title="Delete Selected">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                </button>
+
+                <button class="btn danger" id="action-clear" title="Clear Canvas">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+                
+                <button class="btn" id="action-download" title="Save PNG">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </button>
+
+                <button class="btn" id="action-export-svg" title="Save SVG">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gallery Modal -->
+    <div id="gallery-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2>My Sketches</h2>
+                <button class="btn-small" id="gallery-close">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="doc-list" id="doc-list">
+                <!-- Document items injected here -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="gallery-import">Import SVG</button>
+                <button class="btn-secondary" id="gallery-import-img" style="margin-left: 10px;">Import Image</button>
+                <button class="btn-primary" id="gallery-new">+ New Sketch</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Configuration ---
+            const CONFIG = {
+                maxHistory: 30,
+                indexKey: 'sketch_pad_index', 
+                docPrefix: 'sketch_pad_doc_',
+                selectionColor: 'rgba(59, 130, 246, 0.1)',
+                selectionBorder: '#3b82f6',
+                handleSize: 10,
+                rotateHandleOffset: 25
+            };
+
+            // --- Theme Manager ---
+            const ThemeManager = {
+                init: () => {
+                    const saved = localStorage.getItem('sketch_pad_theme');
+                    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    const theme = saved || (systemDark ? 'dark' : 'light');
+                    ThemeManager.set(theme);
+                },
+                set: (theme) => {
+                    document.documentElement.setAttribute('data-theme', theme);
+                    localStorage.setItem('sketch_pad_theme', theme);
+                    
+                    const moon = document.querySelector('.icon-moon');
+                    const sun = document.querySelector('.icon-sun');
+                    if (theme === 'dark') {
+                        moon.style.display = 'none';
+                        sun.style.display = 'block';
+                    } else {
+                        moon.style.display = 'block';
+                        sun.style.display = 'none';
+                    }
+                },
+                toggle: () => {
+                    const current = document.documentElement.getAttribute('data-theme');
+                    ThemeManager.set(current === 'dark' ? 'light' : 'dark');
+                }
+            };
+
+            // --- DOM Elements ---
+            const canvasContainer = document.getElementById('canvas-container');
+            const canvas = document.getElementById('drawing-board');
+            const ctx = canvas.getContext('2d', { alpha: false });
+            const textHelper = document.getElementById('text-helper');
+            const fileInput = document.getElementById('file-input');
+            const imgInput = document.getElementById('img-input');
+            
+            const ui = {
+                color: document.getElementById('color-picker'),
+                size: document.getElementById('brush-size'),
+                sizeLabel: document.querySelector('#brush-size + .size-label'),
+                angle: document.getElementById('nib-angle'),
+                angleControl: document.getElementById('angle-control'),
+                angleLabel: document.querySelector('#nib-angle + .size-label'),
+                
+                // Smooth Pen Controls
+                smoothing: document.getElementById('smoothing-level'),
+                smoothingControl: document.getElementById('smoothing-control'),
+                smoothingLabel: document.querySelector('#smoothing-level + .size-label'),
+
+                // Tools
+                brush: document.getElementById('tool-brush'),
+                text: document.getElementById('tool-text'), // New
+                calligraphy: document.getElementById('tool-calligraphy'),
+                smooth: document.getElementById('tool-smooth'),
+                eraser: document.getElementById('tool-eraser'),
+                select: document.getElementById('tool-select'),
+                mirror: document.getElementById('tool-mirror'),
+                mirrorOptions: document.getElementById('mirror-options'),
+                mirrorAxis: document.getElementById('mirror-axis'),
+                
+                // Actions
+                undo: document.getElementById('action-undo'),
+                redo: document.getElementById('action-redo'),
+                clear: document.getElementById('action-clear'),
+                delete: document.getElementById('action-delete'),
+                download: document.getElementById('action-download'),
+                exportSvg: document.getElementById('action-export-svg'),
+                status: document.getElementById('save-status'),
+                
+                // Document System
+                galleryBtn: document.getElementById('btn-gallery'),
+                docTitle: document.getElementById('doc-title'),
+                modal: document.getElementById('gallery-modal'),
+                modalClose: document.getElementById('gallery-close'),
+                docList: document.getElementById('doc-list'),
+                btnNew: document.getElementById('gallery-new'),
+                btnImport: document.getElementById('gallery-import'),
+                btnImportImg: document.getElementById('gallery-import-img'),
+                
+                // Theme
+                btnTheme: document.getElementById('btn-theme')
+            };
+
+            // --- App State ---
+            let state = {
+                docId: null, 
+                
+                tool: 'brush',
+                strokes: [],
+                activeStrokes: [],
+                
+                nibAngle: 30,
+                smoothingFactor: 10,
+                mirrorMode: 'vertical',
+
+                // Smooth Pen State
+                penPos: { x: 0, y: 0 },
+
+                // Text State
+                textEntry: {
+                    active: false,
+                    x: 0,
+                    y: 0,
+                    targetIndex: -1
+                },
+
+                selection: {
+                    active: false,
+                    items: [], 
+                    bounds: null,
+                    mode: 'none', // 'move', 'resize-nw', 'rotate', etc.
+                    dragStartX: 0,
+                    dragStartY: 0,
+                    initialBounds: null,
+                    handleHit: null
+                },
+
+                isPointerDown: false,
+                pointerX: 0,
+                pointerY: 0,
+                
+                history: [],
+                historyStep: -1
+            };
+
+            // --- Storage & Document Manager ---
+            const Storage = {
+                getIndex: () => { try { return JSON.parse(localStorage.getItem(CONFIG.indexKey)) || []; } catch { return []; } },
+                setIndex: (index) => { localStorage.setItem(CONFIG.indexKey, JSON.stringify(index)); },
+                loadDoc: (id) => { try { return JSON.parse(localStorage.getItem(CONFIG.docPrefix + id)); } catch { return null; } },
+                saveDoc: (id, content) => { localStorage.setItem(CONFIG.docPrefix + id, JSON.stringify(content)); },
+                deleteDoc: (id) => { localStorage.removeItem(CONFIG.docPrefix + id); }
+            };
+
+            const DocManager = {
+                create: () => {
+                    const id = Date.now().toString(36) + Math.random().toString(36).substr(2);
+                    const doc = { id: id, name: 'Untitled Sketch', created: Date.now(), updated: Date.now() };
+                    const index = Storage.getIndex();
+                    index.unshift(doc);
+                    Storage.setIndex(index);
+                    Storage.saveDoc(id, []);
+                    return doc;
+                },
+                load: (id) => {
+                    const content = Storage.loadDoc(id);
+                    const index = Storage.getIndex();
+                    const meta = index.find(d => d.id === id);
+                    if (content && meta) {
+                        state.docId = id;
+                        state.strokes = content;
+                        state.history = [];
+                        state.historyStep = -1;
+                        ui.docTitle.value = meta.name;
+                        DocManager.saveToHistory(true);
+                        render();
+                        return true;
+                    }
+                    return false;
+                },
+                saveCurrent: () => {
+                    if (!state.docId) return;
+                    Storage.saveDoc(state.docId, state.strokes);
+                    const index = Storage.getIndex();
+                    const metaIndex = index.findIndex(d => d.id === state.docId);
+                    if (metaIndex !== -1) {
+                        index[metaIndex].updated = Date.now();
+                        index[metaIndex].name = ui.docTitle.value;
+                        Storage.setIndex(index);
+                    }
+                    showStatus('Saved');
+                },
+                delete: (id) => {
+                    if (confirm('Delete this sketch permanently?')) {
+                        Storage.deleteDoc(id);
+                        const index = Storage.getIndex().filter(d => d.id !== id);
+                        Storage.setIndex(index);
+                        renderDocList();
+                        if (state.docId === id) {
+                            const newDoc = DocManager.create();
+                            DocManager.load(newDoc.id);
+                        }
+                    }
+                },
+                saveToHistory: (initial = false) => {
+                    // Remove Image Elements from state before saving to history/localstorage to avoid circular deps
+                    // We only save the 'src' string
+                    const cleanStrokes = state.strokes.map(s => {
+                        if (s.type === 'image') {
+                            const { imgElem, ...rest } = s;
+                            return rest;
+                        }
+                        return s;
+                    });
+                    
+                    const snapshot = JSON.stringify(cleanStrokes);
+                    if (state.historyStep < state.history.length - 1) {
+                        state.history = state.history.slice(0, state.historyStep + 1);
+                    }
+                    if (initial || state.history.length === 0 || state.history[state.history.length-1] !== snapshot) {
+                        state.history.push(snapshot);
+                        state.historyStep++;
+                    }
+                    if (state.history.length > CONFIG.maxHistory) {
+                        state.history.shift();
+                        state.historyStep--;
+                    }
+                    updateHistoryUI();
+                    if (!initial) DocManager.saveCurrent();
+                }
+            };
+
+            // --- SVG System ---
+            const SVGExporter = {
+                export: (strokes, title) => {
+                    const width = canvas.width;
+                    const height = canvas.height;
+                    const style = getComputedStyle(document.documentElement);
+                    const paperColor = style.getPropertyValue('--canvas-paper').trim();
+                    
+                    let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
+                    
+                    // Background
+                    svgContent += `<rect width="100%" height="100%" fill="${paperColor}"/>`;
+
+                    strokes.forEach(s => {
+                        const color = s.type === 'eraser' ? paperColor : s.color;
+                        
+                        if (s.type === 'image') {
+                             // SVG Image export support
+                             // Note: Rotation on SVG images needs transform
+                             const cx = s.x + s.w/2;
+                             const cy = s.y + s.h/2;
+                             const transform = s.rotation ? `transform="rotate(${s.rotation * (180/Math.PI)}, ${cx}, ${cy})"` : '';
+                             svgContent += `<image href="${s.src}" x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}" ${transform} />`;
+
+                        } else if (s.type === 'text') {
+                            const safeText = s.text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+                            let transform = '';
+                            if (s.rotation) {
+                                const size = s.size;
+                                const lines = s.text.split('\n');
+                                const dim = { w: ctx.measureText(lines[0]).width, h: lines.length * size * 1.2 }; 
+                                const cx = s.x + dim.w/2; 
+                                const cy = s.y + dim.h/2;
+                                transform = `transform="rotate(${s.rotation * (180/Math.PI)}, ${cx}, ${cy})"`;
+                            }
+
+                            const lines = s.text.split('\n');
+                            const lh = s.size * 1.2;
+                            lines.forEach((line, i) => {
+                                svgContent += `<text x="${s.x}" y="${s.y + (i * lh) + s.size}" fill="${color}" font-family="${s.font}" font-size="${s.size}" ${transform} style="white-space: pre;">${line}</text>`;
+                            });
+                        } else if (s.points && s.points.length > 0) {
+                            const pointsStr = s.points.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+                            svgContent += `<polyline points="${pointsStr}" fill="none" stroke="${color}" stroke-width="${s.size}" stroke-linecap="round" stroke-linejoin="round"/>`;
+                        }
+                    });
+
+                    svgContent += '</svg>';
+                    return svgContent;
+                },
+                download: (content, filename) => {
+                    const blob = new Blob([content], {type: 'image/svg+xml'});
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = filename + '.svg';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            };
+
+            const SVGImporter = {
+                handleFile: (file) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(e.target.result, 'image/svg+xml');
+                        SVGImporter.parseSVG(doc.documentElement);
+                    };
+                    reader.readAsText(file);
+                },
+                parseSVG: (svgElement) => {
+                    const newStrokes = [];
+                    const traverse = (node) => {
+                        if (node.nodeType !== 1) return; 
+                        const tag = node.tagName.toLowerCase();
+                        const style = window.getComputedStyle(node);
+                        const strokeColor = node.getAttribute('stroke') || style.stroke || '#000';
+                        const fillColor = node.getAttribute('fill') || style.fill || '#000';
+                        const width = parseFloat(node.getAttribute('stroke-width')) || parseFloat(style.strokeWidth) || 2;
+
+                        if (tag === 'text') {
+                            const x = parseFloat(node.getAttribute('x')) || 0;
+                            const y = parseFloat(node.getAttribute('y')) || 0;
+                            const size = parseFloat(node.getAttribute('font-size')) || 16;
+                            const text = node.textContent.trim();
+                            if (text) {
+                                newStrokes.push({
+                                    type: 'text',
+                                    x: x, y: y,
+                                    text: text,
+                                    size: size,
+                                    color: fillColor !== 'none' ? fillColor : strokeColor,
+                                    rotation: 0,
+                                    font: 'sans-serif'
+                                });
+                            }
+                        } else if (['path', 'rect', 'circle', 'line', 'polyline', 'polygon'].includes(tag)) {
+                            try {
+                                const length = node.getTotalLength();
+                                const points = [];
+                                const samplingResolution = 5; 
+                                for (let i = 0; i <= length; i += samplingResolution) {
+                                    const pt = node.getPointAtLength(i);
+                                    points.push({x: pt.x, y: pt.y});
+                                }
+                                const last = node.getPointAtLength(length);
+                                points.push({x: last.x, y: last.y});
+
+                                if (points.length > 0) {
+                                    newStrokes.push({
+                                        type: 'brush',
+                                        color: strokeColor !== 'none' ? strokeColor : fillColor,
+                                        size: width,
+                                        points: points,
+                                        angle: 30
+                                    });
+                                }
+                            } catch (err) { console.warn("Could not parse SVG element", tag, err); }
+                        }
+                        Array.from(node.children).forEach(traverse);
+                    };
+                    traverse(svgElement);
+                    if (newStrokes.length > 0) {
+                        state.strokes = state.strokes.concat(newStrokes);
+                        DocManager.saveToHistory();
+                        render();
+                        showStatus('Imported');
+                    } else { alert('No readable paths found in SVG.'); }
+                }
+            };
+
+            // --- Image Importer ---
+            const ImageImporter = {
+                handleFile: (file) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            // Smart scaling
+                            const maxW = canvas.width * 0.8;
+                            const maxH = canvas.height * 0.8;
+                            let w = img.width;
+                            let h = img.height;
+                            
+                            if (w > maxW) {
+                                h *= maxW / w;
+                                w = maxW;
+                            }
+                            if (h > maxH) {
+                                w *= maxH / h;
+                                h = maxH;
+                            }
+                            
+                            const x = (canvas.width - w) / 2;
+                            const y = (canvas.height - h) / 2;
+                            
+                            state.strokes.push({
+                                type: 'image',
+                                x: x,
+                                y: y,
+                                w: w,
+                                h: h,
+                                src: e.target.result,
+                                rotation: 0,
+                                imgElem: img
+                            });
+                            DocManager.saveToHistory();
+                            render();
+                            showStatus('Image Imported');
+                        };
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+
+            // --- UI Functions ---
+            function openGallery() { renderDocList(); ui.modal.classList.add('open'); }
+            function closeGallery() { ui.modal.classList.remove('open'); }
+            function renderDocList() {
+                const index = Storage.getIndex();
+                ui.docList.innerHTML = '';
+                if (index.length === 0) {
+                    ui.docList.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:20px;">No sketches yet. Create one!</div>';
+                    return;
+                }
+                index.forEach(doc => {
+                    const dateStr = new Date(doc.updated).toLocaleDateString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+                    const isActive = doc.id === state.docId ? 'active' : '';
+                    const item = document.createElement('div');
+                    item.className = `doc-item ${isActive}`;
+                    item.innerHTML = `
+                        <div class="doc-info"><div class="doc-name">${doc.name}</div><div class="doc-date">${dateStr}</div></div>
+                        <div class="doc-actions"><button class="btn-small delete-btn" data-id="${doc.id}" title="Delete"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button></div>
+                    `;
+                    item.addEventListener('click', (e) => { if (!e.target.closest('.delete-btn')) { DocManager.load(doc.id); closeGallery(); } });
+                    item.querySelector('.delete-btn').addEventListener('click', (e) => { e.stopPropagation(); DocManager.delete(doc.id); });
+                    ui.docList.appendChild(item);
+                });
+            }
+
+            function init() {
+                ThemeManager.init();
+                resizeCanvas();
+                const index = Storage.getIndex();
+                if (index.length > 0) { index.sort((a,b) => b.updated - a.updated); DocManager.load(index[0].id); }
+                else { const newDoc = DocManager.create(); DocManager.load(newDoc.id); }
+                render();
+                updateToolUI();
+            }
+
+            function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; render(); }
+
+            // --- Rendering Engine ---
+
+            function render() {
+                const style = getComputedStyle(document.documentElement);
+                const paperColor = style.getPropertyValue('--canvas-paper').trim();
+                
+                ctx.fillStyle = paperColor;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                for (let i = 0; i < state.strokes.length; i++) {
+                    const stroke = state.strokes[i];
+                    if (stroke.type === 'text') {
+                        renderTextObject(stroke);
+                    } else if (stroke.type === 'image') {
+                        renderImageObject(stroke);
+                    } else if (stroke.points && stroke.points.length > 0) {
+                        ctx.fillStyle = stroke.color;
+                        ctx.strokeStyle = stroke.type === 'eraser' ? paperColor : stroke.color;
+                        if (stroke.type === 'calligraphy') renderCalligraphyStroke(stroke);
+                        else renderStandardStroke(stroke);
+                    }
+                }
+
+                if (state.tool === 'mirror') drawMirrorGuides();
+                if (state.tool === 'select') renderSelectionOverlay();
+            }
+
+            function renderImageObject(obj) {
+                // Hydrate image if needed (e.g. loaded from storage)
+                if (!obj.imgElem) {
+                    obj.imgElem = new Image();
+                    obj.imgElem.onload = () => render();
+                    obj.imgElem.src = obj.src;
+                }
+                
+                if (obj.imgElem.complete) {
+                    ctx.save();
+                    // Rotate around center
+                    const cx = obj.x + obj.w / 2;
+                    const cy = obj.y + obj.h / 2;
+                    ctx.translate(cx, cy);
+                    ctx.rotate(obj.rotation || 0);
+                    ctx.translate(-cx, -cy);
+                    
+                    ctx.drawImage(obj.imgElem, obj.x, obj.y, obj.w, obj.h);
+                    ctx.restore();
+                }
+            }
+
+            function renderStandardStroke(stroke) {
+                ctx.beginPath();
+                ctx.lineWidth = stroke.size;
+                const p0 = stroke.points[0];
+                ctx.moveTo(p0.x, p0.y);
+                for (let j = 1; j < stroke.points.length; j++) {
+                    ctx.lineTo(stroke.points[j].x, stroke.points[j].y);
+                }
+                ctx.stroke();
+            }
+
+            function renderCalligraphyStroke(stroke) {
+                const points = stroke.points;
+                if (points.length < 2) return;
+                const angleRad = (stroke.angle || 30) * (Math.PI / 180);
+                const dx = (stroke.size / 2) * Math.cos(angleRad);
+                const dy = (stroke.size / 2) * Math.sin(angleRad);
+                ctx.beginPath();
+                ctx.moveTo(points[0].x + dx, points[0].y + dy);
+                for (let i = 1; i < points.length; i++) { ctx.lineTo(points[i].x + dx, points[i].y + dy); }
+                for (let i = points.length - 1; i >= 0; i--) { ctx.lineTo(points[i].x - dx, points[i].y - dy); }
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            function renderTextObject(obj) {
+                if (state.textEntry.active && state.textEntry.targetIndex === state.strokes.indexOf(obj)) return; // Don't render if editing
+
+                ctx.save();
+                if (obj.rotation) {
+                    // Rotate around text center (approximate)
+                    const dims = measureTextBoundsSimple(obj);
+                    const cx = dims.x + dims.w/2;
+                    const cy = dims.y + dims.h/2;
+                    ctx.translate(cx, cy);
+                    ctx.rotate(obj.rotation);
+                    ctx.translate(-cx, -cy);
+                }
+
+                ctx.font = `${obj.weight || 'normal'} ${obj.size}px ${obj.font || 'sans-serif'}`;
+                ctx.fillStyle = obj.color;
+                ctx.textBaseline = 'top';
+                
+                // Handle multiline
+                const lines = obj.text.split('\n');
+                const lineHeight = obj.size * 1.2;
+                lines.forEach((line, i) => {
+                    ctx.fillText(line, obj.x, obj.y + (i * lineHeight));
+                });
+                ctx.restore();
+            }
+
+            function drawMirrorGuides() {
+                const w = canvas.width; const h = canvas.height; const mx = w / 2; const my = h / 2;
+                ctx.beginPath(); ctx.strokeStyle = 'rgba(59, 130, 246, 0.3)'; ctx.lineWidth = 1; ctx.setLineDash([10, 10]);
+                if (state.mirrorMode === 'vertical' || state.mirrorMode === 'quad') { ctx.moveTo(mx, 0); ctx.lineTo(mx, h); }
+                if (state.mirrorMode === 'horizontal' || state.mirrorMode === 'quad') { ctx.moveTo(0, my); ctx.lineTo(w, my); }
+                ctx.stroke(); ctx.setLineDash([]);
+            }
+
+            function renderSelectionOverlay() {
+                if (state.selection.items.length === 0) {
+                     // Draw selection drag box if dragging empty space
+                    if (state.isPointerDown && state.tool === 'select' && state.selection.mode === 'select-box') {
+                        const w = state.pointerX - state.selection.dragStartX;
+                        const h = state.pointerY - state.selection.dragStartY;
+                        ctx.strokeStyle = '#999';
+                        ctx.lineWidth = 1;
+                        ctx.setLineDash([4, 4]);
+                        ctx.strokeRect(state.selection.dragStartX, state.selection.dragStartY, w, h);
+                        ctx.setLineDash([]);
+                    }
+                    return;
+                }
+
+                if (!state.selection.bounds) return;
+
+                const b = state.selection.bounds;
+                
+                // Draw bounding box
+                ctx.save();
+                ctx.strokeStyle = CONFIG.selectionBorder;
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(b.x, b.y, b.w, b.h);
+                
+                // Draw handles
+                const handles = getSelectionHandles(b);
+                ctx.fillStyle = '#fff';
+                ctx.strokeStyle = CONFIG.selectionBorder;
+                ctx.lineWidth = 1;
+
+                // Square handles (Resize)
+                ['nw', 'ne', 'sw', 'se', 'n', 's', 'e', 'w'].forEach(type => {
+                    const h = handles[type];
+                    ctx.beginPath();
+                    ctx.rect(h.x, h.y, h.w, h.h);
+                    ctx.fill();
+                    ctx.stroke();
+                });
+
+                // Rotation handle
+                const rot = handles.rot;
+                const topMid = handles.n;
+                ctx.beginPath();
+                ctx.moveTo(topMid.x + topMid.w/2, topMid.y);
+                ctx.lineTo(rot.x + rot.w/2, rot.y + rot.h/2);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(rot.x + rot.w/2, rot.y + rot.h/2, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            function getSelectionHandles(b) {
+                const s = CONFIG.handleSize;
+                const hs = s / 2;
+                return {
+                    nw: { x: b.x - hs, y: b.y - hs, w: s, h: s },
+                    ne: { x: b.x + b.w - hs, y: b.y - hs, w: s, h: s },
+                    sw: { x: b.x - hs, y: b.y + b.h - hs, w: s, h: s },
+                    se: { x: b.x + b.w - hs, y: b.y + b.h - hs, w: s, h: s },
+                    n:  { x: b.x + b.w/2 - hs, y: b.y - hs, w: s, h: s },
+                    s:  { x: b.x + b.w/2 - hs, y: b.y + b.h - hs, w: s, h: s },
+                    w:  { x: b.x - hs, y: b.y + b.h/2 - hs, w: s, h: s },
+                    e:  { x: b.x + b.w - hs, y: b.y + b.h/2 - hs, w: s, h: s },
+                    rot: { x: b.x + b.w/2 - hs, y: b.y - CONFIG.rotateHandleOffset - hs, w: s, h: s }
+                };
+            }
+
+            // --- Interaction Logic ---
+
+            function getCoords(e) {
+                if (e.touches && e.touches.length > 0) { return { x: e.touches[0].clientX, y: e.touches[0].clientY }; }
+                return { x: e.clientX, y: e.clientY };
+            }
+
+            function handlePointerDown(e) {
+                if (e.type === 'mousedown' && e.button !== 0) return;
+                const { x, y } = getCoords(e);
+                state.isPointerDown = true;
+                state.pointerX = x; state.pointerY = y;
+
+                if (state.tool === 'text') {
+                    handleTextClick(x, y);
+                    return; 
+                }
+
+                if (state.textEntry.active) {
+                    commitTextEntry();
+                    return;
+                }
+
+                if (state.tool === 'select') {
+                    // Check handles first
+                    if (state.selection.items.length > 0 && state.selection.bounds) {
+                        const handle = getHandleAt(x, y, state.selection.bounds);
+                        if (handle) {
+                            state.selection.mode = handle === 'rot' ? 'rotate' : 'resize';
+                            state.selection.handleHit = handle;
+                            state.selection.dragStartX = x;
+                            state.selection.dragStartY = y;
+                            // Store initial bounds and item states for reference during transform
+                            state.selection.initialBounds = { ...state.selection.bounds };
+                            return;
+                        }
+                        
+                        // Check inside box for move
+                        if (isInside(x, y, state.selection.bounds)) {
+                            state.selection.mode = 'move';
+                            state.selection.dragStartX = x;
+                            state.selection.dragStartY = y;
+                            return;
+                        }
+                    }
+
+                    // Start new selection box
+                    handleSelectionStart(x, y);
+                } else {
+                    state.activeStrokes = []; 
+                    if (state.tool === 'smooth') state.penPos = { x, y };
+                    startStroke(x, y);
+                    render();
+                }
+            }
+
+            function handlePointerMove(e) {
+                const { x, y } = getCoords(e);
+                state.pointerX = x; state.pointerY = y;
+                
+                // Hover Effects
+                if (state.tool === 'select' && !state.isPointerDown) {
+                    updateCursor(x, y);
+                }
+
+                if (!state.isPointerDown) return;
+                if (e.cancelable) e.preventDefault();
+
+                if (state.tool === 'select') {
+                    if (state.selection.mode === 'move') {
+                        handleMove(x, y);
+                    } else if (state.selection.mode === 'resize') {
+                        handleResize(x, y, e.shiftKey);
+                    } else if (state.selection.mode === 'rotate') {
+                        handleRotate(x, y, e.shiftKey);
+                    } else if (state.selection.mode === 'select-box') {
+                        render(); // Box drawn in render()
+                    }
+                } else if (state.tool !== 'text') {
+                    handleDrawingMove(x, y);
+                }
+            }
+
+            function handlePointerUp(e) {
+                if (!state.isPointerDown) return;
+                state.isPointerDown = false;
+                
+                if (state.tool === 'select') {
+                    if (state.selection.mode === 'select-box') {
+                        handleSelectionBoxEnd();
+                    } else if (['move', 'resize', 'rotate'].includes(state.selection.mode)) {
+                        DocManager.saveToHistory();
+                    }
+                    state.selection.mode = 'none';
+                } else if (state.tool !== 'text') {
+                    state.activeStrokes = [];
+                    DocManager.saveToHistory();
+                }
+            }
+
+            // --- Transform Logic ---
+
+            function getHandleAt(x, y, b) {
+                const handles = getSelectionHandles(b);
+                const hitDist = 8; // generous hit area
+                
+                // Check Rotate first
+                if (dist(x, y, handles.rot.x + 5, handles.rot.y + 5) < 10) return 'rot';
+                
+                for (let key in handles) {
+                    if (key === 'rot') continue;
+                    const h = handles[key];
+                    if (x >= h.x - 2 && x <= h.x + h.w + 2 && y >= h.y - 2 && y <= h.y + h.h + 2) {
+                        return key;
+                    }
+                }
+                return null;
+            }
+
+            function updateCursor(x, y) {
+                if (state.selection.items.length > 0 && state.selection.bounds) {
+                    const handle = getHandleAt(x, y, state.selection.bounds);
+                    if (handle) {
+                        const cursors = {
+                            'n': 'ns-resize', 's': 'ns-resize',
+                            'e': 'ew-resize', 'w': 'ew-resize',
+                            'nw': 'nwse-resize', 'se': 'nwse-resize',
+                            'ne': 'nesw-resize', 'sw': 'nesw-resize',
+                            'rot': 'grab'
+                        };
+                        canvasContainer.style.cursor = cursors[handle];
+                        return;
+                    }
+                    if (isInside(x, y, state.selection.bounds)) {
+                        canvasContainer.style.cursor = 'move';
+                        return;
+                    }
+                }
+                canvasContainer.style.cursor = 'default';
+            }
+
+            function handleMove(x, y) {
+                const dx = x - state.selection.dragStartX;
+                const dy = y - state.selection.dragStartY;
+                
+                state.selection.items.forEach(idx => {
+                    const s = state.strokes[idx];
+                    if (s.type === 'text') {
+                        s.x += dx; s.y += dy;
+                    } else if (s.type === 'image') {
+                        s.x += dx; s.y += dy;
+                    } else {
+                        s.points.forEach(pt => { pt.x += dx; pt.y += dy; });
+                    }
+                });
+                
+                if (state.selection.bounds) {
+                    state.selection.bounds.x += dx;
+                    state.selection.bounds.y += dy;
+                }
+                
+                state.selection.dragStartX = x;
+                state.selection.dragStartY = y;
+                render();
+            }
+
+            function handleResize(x, y, maintainAspect) {
+                const b = state.selection.initialBounds; // Use initial bounds for stable scaling
+                if (!b) return;
+
+                const handle = state.selection.handleHit;
+                let scaleX = 1;
+                let scaleY = 1;
+
+                // Determine Origin (Anchor Point)
+                let anchorX = handle.includes('w') ? b.x + b.w : b.x;
+                let anchorY = handle.includes('n') ? b.y + b.h : b.y;
+                
+                let dx = x - state.selection.dragStartX;
+                let dy = y - state.selection.dragStartY;
+                
+                // Constraint deltas based on handle
+                if (handle === 'n' || handle === 's') dx = 0;
+                if (handle === 'e' || handle === 'w') dy = 0;
+                
+                const curBounds = state.selection.bounds;
+                let newW = curBounds.w;
+                let newH = curBounds.h;
+                
+                if (handle.includes('e')) newW += dx;
+                if (handle.includes('w')) newW -= dx;
+                if (handle.includes('s')) newH += dy;
+                if (handle.includes('n')) newH -= dy;
+                
+                // Prevent inversion/zero
+                if (newW < 5) newW = 5; 
+                if (newH < 5) newH = 5;
+
+                let sx = newW / curBounds.w;
+                let sy = newH / curBounds.h;
+                
+                if (maintainAspect) {
+                    const maxS = Math.max(sx, sy);
+                    sx = maxS; sy = maxS;
+                    // Recalculate W/H based on locked aspect
+                    if (handle.includes('e') || handle.includes('w')) newW = curBounds.w * sx;
+                    if (handle.includes('s') || handle.includes('n')) newH = curBounds.h * sy;
+                }
+
+                state.selection.items.forEach(idx => {
+                    const s = state.strokes[idx];
+                    
+                    if (s.type === 'text') {
+                        s.x = anchorX + (s.x - anchorX) * sx;
+                        s.y = anchorY + (s.y - anchorY) * sy;
+                        s.size *= (sx + sy) / 2; // Approx text scaling
+                    } else if (s.type === 'image') {
+                        s.x = anchorX + (s.x - anchorX) * sx;
+                        s.y = anchorY + (s.y - anchorY) * sy;
+                        s.w *= sx;
+                        s.h *= sy;
+                    } else {
+                        s.size *= (sx + sy) / 2; // Scale stroke weight
+                        s.points.forEach(pt => {
+                            pt.x = anchorX + (pt.x - anchorX) * sx;
+                            pt.y = anchorY + (pt.y - anchorY) * sy;
+                        });
+                    }
+                });
+
+                updateSelectionBounds();
+                state.selection.dragStartX = x; // Reset drag delta since we applied it
+                state.selection.dragStartY = y;
+                render();
+            }
+
+            function handleRotate(x, y, snap) {
+                const b = state.selection.bounds;
+                const cx = b.x + b.w / 2;
+                const cy = b.y + b.h / 2;
+                
+                // Angle from center to mouse
+                let angle = Math.atan2(y - cy, x - cx) - Math.atan2(state.selection.dragStartY - cy, state.selection.dragStartX - cx);
+                
+                if (snap) {
+                   // Simple snap implementation could go here, but relative rotation is smoother for UX
+                }
+
+                const cos = Math.cos(angle);
+                const sin = Math.sin(angle);
+
+                state.selection.items.forEach(idx => {
+                    const s = state.strokes[idx];
+                    
+                    if (s.type === 'text') {
+                        // Rotate position
+                        const nx = cx + (s.x - cx) * cos - (s.y - cy) * sin;
+                        const ny = cy + (s.x - cx) * sin + (s.y - cy) * cos;
+                        s.x = nx;
+                        s.y = ny;
+                        s.rotation = (s.rotation || 0) + angle;
+                    } else if (s.type === 'image') {
+                        // Image rotation
+                        const nx = cx + (s.x + s.w/2 - cx) * cos - (s.y + s.h/2 - cy) * sin;
+                        const ny = cy + (s.x + s.w/2 - cx) * sin + (s.y + s.h/2 - cy) * cos;
+                        // Center needs to move to new pos, then calc top-left
+                        s.x = nx - s.w/2;
+                        s.y = ny - s.h/2;
+                        s.rotation = (s.rotation || 0) + angle;
+                    } else {
+                        // Rotate points
+                        s.points.forEach(pt => {
+                            const nx = cx + (pt.x - cx) * cos - (pt.y - cy) * sin;
+                            const ny = cy + (pt.x - cx) * sin + (pt.y - cy) * cos;
+                            pt.x = nx;
+                            pt.y = ny;
+                        });
+                    }
+                });
+
+                updateSelectionBounds(); // Box rotates with content (resizes to fit)
+                state.selection.dragStartX = x;
+                state.selection.dragStartY = y;
+                render();
+            }
+
+            // --- Drawing Logic (Adapted) ---
+            function handleDrawingMove(x, y) {
+                const w = canvas.width; const h = canvas.height;
+                let targetX = x;
+                let targetY = y;
+
+                if (state.tool === 'smooth') {
+                    const smoothVal = parseInt(ui.smoothing.value);
+                    const friction = 1 - (smoothVal / 35);
+                    state.penPos.x += (x - state.penPos.x) * friction;
+                    state.penPos.y += (y - state.penPos.y) * friction;
+                    targetX = state.penPos.x;
+                    targetY = state.penPos.y;
+                }
+
+                state.activeStrokes.forEach(item => {
+                    let tx = targetX, ty = targetY;
+                    if (item.transform === 'vert') tx = w - targetX;
+                    else if (item.transform === 'horz') ty = h - targetY;
+                    else if (item.transform === 'quad') { tx = w - targetX; ty = h - targetY; }
+
+                    const lastPt = item.stroke.points[item.stroke.points.length - 1];
+                    const dist = Math.hypot(tx - lastPt.x, ty - lastPt.y);
+                    if (dist > 2) {
+                        item.stroke.points.push({ x: tx, y: ty });
+                    }
+                });
+                render();
+            }
+
+            // --- Text Tool Logic ---
+
+            function handleTextClick(x, y) {
+                // Check if clicking existing text
+                const clickedTextIndex = findTextAt(x, y);
+                
+                if (clickedTextIndex !== -1) {
+                    // Edit existing
+                    editText(clickedTextIndex);
+                } else {
+                    // Start new
+                    if (state.textEntry.active) commitTextEntry(); // Commit previous
+                    startTextEntry(x, y);
+                }
+            }
+
+            function startTextEntry(x, y, existingIndex = -1) {
+                state.textEntry.active = true;
+                state.textEntry.x = x;
+                state.textEntry.y = y;
+                state.textEntry.targetIndex = existingIndex;
+
+                textHelper.style.display = 'block';
+                textHelper.style.left = x + 'px';
+                textHelper.style.top = y + 'px';
+                textHelper.style.fontSize = ui.size.value + 'px';
+                textHelper.style.color = ui.color.value;
+                
+                if (existingIndex !== -1) {
+                    textHelper.value = state.strokes[existingIndex].text;
+                } else {
+                    textHelper.value = '';
+                }
+                
+                // Adjust textarea size
+                textHelper.style.width = '200px';
+                textHelper.style.height = '100px';
+                
+                setTimeout(() => textHelper.focus(), 10);
+            }
+
+            function commitTextEntry() {
+                if (!state.textEntry.active) return;
+
+                const text = textHelper.value.trim();
+                if (text) {
+                    const textObj = {
+                        type: 'text',
+                        x: state.textEntry.x,
+                        y: state.textEntry.y,
+                        text: text,
+                        size: parseInt(ui.size.value),
+                        color: ui.color.value,
+                        weight: 'normal',
+                        font: 'sans-serif',
+                        rotation: 0
+                    };
+
+                    if (state.textEntry.targetIndex !== -1) {
+                        // Preserve existing props like rotation
+                        const existing = state.strokes[state.textEntry.targetIndex];
+                        textObj.x = existing.x;
+                        textObj.y = existing.y;
+                        textObj.rotation = existing.rotation;
+                        state.strokes[state.textEntry.targetIndex] = textObj;
+                    } else {
+                        state.strokes.push(textObj);
+                    }
+                    DocManager.saveToHistory();
+                } else if (state.textEntry.targetIndex !== -1) {
+                    state.strokes.splice(state.textEntry.targetIndex, 1);
+                    DocManager.saveToHistory();
+                }
+
+                state.textEntry.active = false;
+                state.textEntry.targetIndex = -1;
+                textHelper.style.display = 'none';
+                textHelper.value = '';
+                render();
+            }
+
+            function editText(index) {
+                const obj = state.strokes[index];
+                ui.size.value = obj.size;
+                ui.color.value = obj.color;
+                startTextEntry(obj.x, obj.y, index);
+                render(); 
+            }
+
+            function findTextAt(x, y) {
+                for (let i = state.strokes.length - 1; i >= 0; i--) {
+                    const s = state.strokes[i];
+                    if (s.type === 'text') {
+                        const bounds = measureTextBoundsSimple(s);
+                        // Simple AABB Hit test (doesn't account for rotation perfectly but good enough for selection)
+                        if (x >= bounds.x && x <= bounds.x + bounds.w &&
+                            y >= bounds.y && y <= bounds.y + bounds.h) {
+                            return i;
+                        }
+                    }
+                }
+                return -1;
+            }
+
+            function measureTextBoundsSimple(obj) {
+                ctx.save();
+                ctx.font = `${obj.weight || 'normal'} ${obj.size}px ${obj.font || 'sans-serif'}`;
+                const lines = obj.text.split('\n');
+                let maxWidth = 0;
+                lines.forEach(line => {
+                    const w = ctx.measureText(line).width;
+                    if (w > maxWidth) maxWidth = w;
+                });
+                const lineHeight = obj.size * 1.2;
+                const height = lines.length * lineHeight;
+                ctx.restore();
+                return { x: obj.x, y: obj.y, w: maxWidth, h: height };
+            }
+
+            // --- Standard Drawing Logic (Helpers) ---
+
+            function startStroke(x, y) {
+                const baseProps = {
+                    color: ui.color.value,
+                    size: parseInt(ui.size.value),
+                    type: state.tool === 'eraser' ? 'eraser' : state.tool, 
+                    angle: parseInt(ui.angle.value)
+                };
+                
+                if (state.tool === 'mirror' || state.tool === 'smooth') baseProps.type = 'brush';
+
+                const s1 = { ...baseProps, points: [{ x, y }] };
+                state.strokes.push(s1);
+                state.activeStrokes.push({ stroke: s1, transform: 'none' });
+
+                if (state.tool === 'mirror') {
+                    const w = canvas.width; const h = canvas.height;
+                    if (state.mirrorMode === 'vertical' || state.mirrorMode === 'quad') {
+                        const s2 = { ...baseProps, points: [{ x: w - x, y }] };
+                        state.strokes.push(s2); state.activeStrokes.push({ stroke: s2, transform: 'vert' });
+                    }
+                    if (state.mirrorMode === 'horizontal' || state.mirrorMode === 'quad') {
+                        const s3 = { ...baseProps, points: [{ x, y: h - y }] };
+                        state.strokes.push(s3); state.activeStrokes.push({ stroke: s3, transform: 'horz' });
+                    }
+                    if (state.mirrorMode === 'quad') {
+                        const s4 = { ...baseProps, points: [{ x: w - x, y: h - y }] };
+                        state.strokes.push(s4); state.activeStrokes.push({ stroke: s4, transform: 'quad' });
+                    }
+                }
+            }
+
+            // --- Selection Helpers ---
+            function handleSelectionStart(x, y) {
+                // Check intersection with items
+                // If not hitting existing selection, clear it
+                if (!state.selection.items.length || !isInside(x,y, state.selection.bounds)) {
+                     // Check single click selection
+                    const textIndex = findTextAt(x, y);
+                    if (textIndex !== -1) {
+                        state.selection.items = [textIndex];
+                        updateSelectionBounds();
+                        updateDeleteButton();
+                        // Prepare Drag
+                        state.selection.mode = 'move';
+                        state.selection.dragStartX = x;
+                        state.selection.dragStartY = y;
+                        render();
+                        return;
+                    }
+
+                    // Check image intersection
+                    // Find topmost image under cursor
+                    let imgIndex = -1;
+                    for (let i = state.strokes.length - 1; i >= 0; i--) {
+                        if (state.strokes[i].type === 'image') {
+                            const img = state.strokes[i];
+                            // Simple box check (ignoring rotation for hit test for simplicity, can upgrade to poly check)
+                            // To be accurate with rotation we'd map mouse point to local coords
+                            if (x >= img.x && x <= img.x + img.w && y >= img.y && y <= img.y + img.h) {
+                                imgIndex = i;
+                                break;
+                            }
+                        }
+                    }
+                    if (imgIndex !== -1) {
+                        state.selection.items = [imgIndex];
+                        updateSelectionBounds();
+                        updateDeleteButton();
+                        state.selection.mode = 'move';
+                        state.selection.dragStartX = x;
+                        state.selection.dragStartY = y;
+                        render();
+                        return;
+                    }
+                    
+                    // Start Box Select
+                    state.selection.items = [];
+                    state.selection.bounds = null;
+                    state.selection.mode = 'select-box';
+                    state.selection.dragStartX = x;
+                    state.selection.dragStartY = y;
+                    updateDeleteButton();
+                }
+                render();
+            }
+
+            function handleSelectionBoxEnd() {
+                const x1 = Math.min(state.selection.dragStartX, state.pointerX);
+                const y1 = Math.min(state.selection.dragStartY, state.pointerY);
+                const w = Math.abs(state.pointerX - state.selection.dragStartX);
+                const h = Math.abs(state.pointerY - state.selection.dragStartY);
+                
+                if (w > 0 && h > 0) {
+                    selectStrokesInBox(x1, y1, w, h);
+                } else {
+                    // Clicked on empty space -> Clear
+                    state.selection.items = [];
+                    state.selection.bounds = null;
+                    updateDeleteButton();
+                    render();
+                }
+            }
+
+            function isInside(x, y, b) { 
+                if(!b) return false;
+                return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h; 
+            }
+            
+            function dist(x1, y1, x2, y2) { return Math.hypot(x2-x1, y2-y1); }
+
+            function selectStrokesInBox(x, y, w, h) {
+                state.selection.items = [];
+                if (w < 5 && h < 5) { w = 10; h = 10; x -= 5; y -= 5; }
+                
+                state.strokes.forEach((s, i) => {
+                   let minX=Infinity, maxX=-Infinity, minY=Infinity, maxY=-Infinity;
+                   
+                   if (s.type === 'text') {
+                       const b = measureTextBoundsSimple(s);
+                       minX = b.x; maxX = b.x + b.w; minY = b.y; maxY = b.y + b.h;
+                   } else if (s.type === 'image') {
+                       minX = s.x; maxX = s.x + s.w; minY = s.y; maxY = s.y + s.h;
+                   } else {
+                       s.points.forEach(p=>{if(p.x<minX)minX=p.x;if(p.x>maxX)maxX=p.x;if(p.y<minY)minY=p.y;if(p.y>maxY)maxY=p.y;});
+                   }
+                   
+                   if (maxX > x && minX < x+w && maxY > y && minY < y+h) state.selection.items.push(i);
+                });
+                updateSelectionBounds(); updateDeleteButton(); render();
+            }
+
+            function updateSelectionBounds() {
+                if (state.selection.items.length===0) { state.selection.bounds=null; return; }
+                let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+                state.selection.items.forEach(idx => {
+                    const s = state.strokes[idx];
+                    if (s.type === 'text') {
+                         const b = measureTextBoundsSimple(s);
+                         if(b.x<minX)minX=b.x; if(b.x+b.w>maxX)maxX=b.x+b.w; if(b.y<minY)minY=b.y; if(b.y+b.h>maxY)maxY=b.y+b.h;
+                    } else if (s.type === 'image') {
+                        // For box calc, just use axis aligned. Rotation makes this tricky but AABB is simpler for now.
+                        // Ideally, calculate rotated corners and find min/max
+                        if(s.x<minX)minX=s.x; if(s.x+s.w>maxX)maxX=s.x+s.w; if(s.y<minY)minY=s.y; if(s.y+s.h>maxY)maxY=s.y+s.h;
+                    } else {
+                        s.points.forEach(p => { if(p.x<minX)minX=p.x; if(p.x>maxX)maxX=p.x; if(p.y<minY)minY=p.y; if(p.y>maxY)maxY=p.y; });
+                    }
+                });
+                state.selection.bounds = {x:minX-10, y:minY-10, w:maxX-minX+20, h:maxY-minY+20};
+            }
+
+            function deleteSelection() {
+                if (state.selection.items.length === 0) return;
+                state.selection.items.sort((a, b) => b - a);
+                state.selection.items.forEach(index => state.strokes.splice(index, 1));
+                state.selection.items = []; state.selection.bounds = null;
+                updateDeleteButton(); DocManager.saveToHistory(); render();
+            }
+            function updateDeleteButton() { ui.delete.classList.toggle('visible', state.selection.items.length > 0); }
+            
+            function undo() { if (state.historyStep > 0) { state.historyStep--; state.strokes = JSON.parse(state.history[state.historyStep]); state.selection.items = []; state.selection.bounds = null; render(); updateHistoryUI(); DocManager.saveCurrent(); } }
+            function redo() { if (state.historyStep < state.history.length - 1) { state.historyStep++; state.strokes = JSON.parse(state.history[state.historyStep]); state.selection.items = []; state.selection.bounds = null; render(); updateHistoryUI(); DocManager.saveCurrent(); } }
+            function updateHistoryUI() { ui.undo.style.opacity = state.historyStep > 0 ? '1' : '0.3'; ui.redo.style.opacity = state.historyStep < state.history.length - 1 ? '1' : '0.3'; }
+            function showStatus(text) { ui.status.textContent = text; ui.status.style.opacity = '1'; setTimeout(() => ui.status.style.opacity = '0', 2000); }
+
+            // --- Tool Switching ---
+            function setTool(toolName) {
+                if (state.tool === 'text' && state.textEntry.active) commitTextEntry();
+
+                state.tool = toolName;
+                if (toolName !== 'select') { state.selection.items = []; state.selection.bounds = null; updateDeleteButton(); render(); }
+                updateToolUI();
+            }
+
+            function updateToolUI() {
+                ['brush','text','calligraphy','smooth','eraser','select','mirror'].forEach(t => {
+                    ui[t].classList.toggle('active', state.tool === t);
+                });
+                ui.mirrorOptions.classList.toggle('visible', state.tool === 'mirror');
+                ui.angleControl.classList.toggle('hidden', state.tool !== 'calligraphy');
+                ui.smoothingControl.classList.toggle('hidden', state.tool !== 'smooth');
+                
+                canvasContainer.style.cursor = state.tool === 'select' ? 'default' : state.tool === 'text' ? 'text' : state.tool === 'eraser' ? 'cell' : 'crosshair';
+            }
+
+            // --- Events ---
+            canvas.addEventListener('mousedown', handlePointerDown);
+            window.addEventListener('mousemove', handlePointerMove);
+            window.addEventListener('mouseup', handlePointerUp);
+            canvas.addEventListener('touchstart', handlePointerDown, { passive: false });
+            window.addEventListener('touchmove', handlePointerMove, { passive: false });
+            window.addEventListener('touchend', handlePointerUp);
+            window.addEventListener('resize', resizeCanvas);
+
+            ui.brush.addEventListener('click', () => setTool('brush'));
+            ui.text.addEventListener('click', () => setTool('text'));
+            ui.calligraphy.addEventListener('click', () => setTool('calligraphy'));
+            ui.smooth.addEventListener('click', () => setTool('smooth'));
+            ui.eraser.addEventListener('click', () => setTool('eraser'));
+            ui.select.addEventListener('click', () => setTool('select'));
+            ui.mirror.addEventListener('click', () => setTool('mirror'));
+            ui.mirrorAxis.addEventListener('change', (e) => { state.mirrorMode = e.target.value; render(); });
+            ui.color.addEventListener('input', () => { if (state.tool === 'select') setTool('brush'); });
+            
+            ui.size.addEventListener('input', () => { 
+                ui.sizeLabel.textContent = `${ui.size.value}px`; 
+                if (state.textEntry.active) textHelper.style.fontSize = ui.size.value + 'px';
+            });
+            ui.angle.addEventListener('input', () => { ui.angleLabel.textContent = `${ui.angle.value}°`; });
+            ui.smoothing.addEventListener('input', () => { 
+                const val = ui.smoothing.value;
+                ui.smoothingLabel.textContent = val < 10 ? 'Low' : val < 20 ? 'Med' : 'High';
+            });
+            
+            ui.undo.addEventListener('click', undo);
+            ui.redo.addEventListener('click', redo);
+            ui.delete.addEventListener('click', deleteSelection);
+            ui.clear.addEventListener('click', () => { if (confirm('Clear canvas?')) { state.strokes = []; state.selection.items = []; state.selection.bounds = null; DocManager.saveToHistory(); render(); } });
+            
+            ui.download.addEventListener('click', () => {
+                const link = document.createElement('a'); link.download = `${ui.docTitle.value.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.png`;
+                const prevSel = state.selection.items; const prevTool = state.tool;
+                state.selection.items = []; state.tool = 'brush'; render();
+                link.href = canvas.toDataURL(); link.click();
+                state.selection.items = prevSel; state.tool = prevTool; render();
+            });
+
+            // SVG Export
+            ui.exportSvg.addEventListener('click', () => {
+                const svg = SVGExporter.export(state.strokes, ui.docTitle.value);
+                SVGExporter.download(svg, ui.docTitle.value.replace(/[^a-z0-9]/gi, '-').toLowerCase());
+            });
+
+            // SVG Import UI triggers
+            ui.btnImport.addEventListener('click', () => {
+                fileInput.click();
+            });
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    SVGImporter.handleFile(e.target.files[0]);
+                    fileInput.value = ''; // Reset
+                    closeGallery();
+                }
+            });
+
+            // Image Import UI triggers
+            ui.btnImportImg.addEventListener('click', () => {
+                imgInput.click();
+            });
+            imgInput.addEventListener('change', (e) => {
+                 if (e.target.files.length > 0) {
+                    ImageImporter.handleFile(e.target.files[0]);
+                    imgInput.value = '';
+                    closeGallery();
+                 }
+            });
+            
+            ui.galleryBtn.addEventListener('click', openGallery);
+            ui.modalClose.addEventListener('click', closeGallery);
+            ui.modal.addEventListener('click', (e) => { if(e.target === ui.modal) closeGallery(); });
+            ui.btnNew.addEventListener('click', () => { const doc = DocManager.create(); DocManager.load(doc.id); closeGallery(); });
+            ui.docTitle.addEventListener('change', () => { DocManager.saveCurrent(); });
+            ui.btnTheme.addEventListener('click', ThemeManager.toggle);
+
+            // Blur text entry on Enter (Shift+Enter for new line)
+            textHelper.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    commitTextEntry();
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (state.textEntry.active) return; // Don't trigger shortcuts while typing
+
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+                if (e.key === 'Delete' || e.key === 'Backspace') deleteSelection();
+                if (e.target.tagName === 'INPUT') return;
+                if (e.key.toLowerCase() === 'b') setTool('brush');
+                if (e.key.toLowerCase() === 't') setTool('text');
+                if (e.key.toLowerCase() === 'c') setTool('calligraphy');
+                if (e.key.toLowerCase() === 's') setTool('smooth');
+                if (e.key.toLowerCase() === 'e') setTool('eraser');
+                if (e.key.toLowerCase() === 'v') setTool('select');
+                if (e.key.toLowerCase() === 'm') setTool('mirror');
+            });
+
+            init();
+        });
+    </script>
+</body>
+</html>
